@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1"/>
+        <meta charset="UTF-8">
+        <meta name="theme-color" content="#4b75ff">
+        <link rel="stylesheet" href="../script/semantic/semantic.min.css">
+        <script src="../script/jquery.min.js"></script>
+        <script src="../script/ao_module.js"></script>
+        <script src="../script/semantic/semantic.min.js"></script>
+        <title>ArSamba Settings</title>
+        <style>
+            body{
+                background-color:white;
+            }
+
+            .success{
+                color: #20c942;
+            }
+
+            .failed{
+                color: #eb4034;
+            }
+        </style>
+    </head>
+    <body>
+        <br>
+		<div class="ui text container">
+            <div class="ui header">
+                <i class="windows icon"></i>
+                <div class="content">
+                    Samba Settings
+                    <div class="sub header">for arozos systems</div>
+                </div>
+            </div>
+            <p>Account Status: <span id="acstatus" class="failed">Disabled</span></p>
+            <div id="enableAccount">
+                <h3>Enable My Samba Account</h3>
+                <form class="ui form" onsubmit="createAccount(event);">
+                <div class="fluid field">
+                    <label>Username (Read Only)</label>
+                    <input type="text" id="username" readonly="true">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="pw">
+                </div>
+                <div class="field">
+                    <label>Confirm Password</label>
+                    <input type="password" id="rpw">
+                </div>
+                <button id="createbtn" class="ui green button" type="submit">Create</button>
+                </form>
+            </div>
+            <div id="disableAccount" style="display:none;">
+                <h3>Disable My Samba Account</h3>
+                <p>This operation will remove your samba user account from the system</p>
+                <button class="ui red button" onclick="removeUser(event)">Disable</button>
+            </div>
+            <div id="notSupported" style="display: none;">
+                <br>
+                <div class="ui header">
+                    <i class="red remove icon"></i>
+                    <div class="content">
+                        Platform Not Supported
+                        <div class="sub header">Are you using Windows?</div>
+                    </div>
+                </div>
+                <p>This setting interface is disabled automatically on not supported platforms.</p>
+            </div>
+            <br>
+            <p>To access yor samba server, use <code id="sambaip"></code> in Windows' File Explorer</p>
+        <br><br>
+        <script>
+            //Do not allow window resize
+            ao_module_setFixedWindowSize();
+
+            //Display the connect info
+            $("#sambaip").text(`\\\\` + window.location.hostname);
+            //Get username from system
+            $.get("../system/users/userinfo", function(data){
+                var username = data.Username;
+                $("#username").val(username);
+
+                //Get the account status
+                $.get("./getStatus?username=" + username, function(data){
+                    if (data.error !== undefined){
+                        //Not supported platforms
+                        $("#enableAccount").hide();
+                        $("#disableAccount").hide();
+                        $("#notSupported").show();
+                    }else{
+                        if (data == true){
+                            $("#acstatus").text("Enabled");
+                            $("#acstatus").attr("class","success");
+                            $("#enableAccount").hide();
+                            $("#disableAccount").show();
+                        } else{
+                            $("#acstatus").text("Disabled");
+                            $("#acstatus").attr("class","failed");
+                            $("#enableAccount").show();
+                            $("#disableAccount").hide();
+                        }
+                    }
+                   
+                });
+            });
+
+            function removeUser(e){
+                 //Process the user creation process
+                 $.get("../system/users/userinfo", function(data){
+                    //Get the username
+                    var username = data.Username;
+                    $.ajax({
+                        url: "./remove",
+                        method: "POST",
+                        data: {username: username},
+                        success: function(data){
+                            //Creation succeed. Reload this page
+                            window.location.reload();
+                        }
+                    });
+                 });
+                
+            }
+            
+
+            function createAccount(e){
+                e.preventDefault();
+                //Get the userinfo again in case the user has changed name during the setting period
+                $.get("../system/users/userinfo", function(data){
+                    //Get the username
+                    var username = data.Username;
+                    
+                    //Check if the password match
+                    var pw = $("#pw").val();
+                    var rpw = $("#rpw").val();
+                    if (pw == "" || rpw == ""){
+                        alert("Password cannot be empty")
+                        return
+                    }
+
+                    if (pw != rpw){
+                        //Password not match
+                        $("#rpw").parent().addClass("error");
+                        return
+                    }else{
+                        $("#rpw").parent().removeClass("error");
+                    }
+
+                    //Process the user creation process
+                    $("#createbtn").addClass("loading");
+                    $.ajax({
+                        url: "./create",
+                        method: "POST",
+                        data: {username: username, password: pw},
+                        success: function(data){
+                            //Creation succeed. Reload this page
+                            $("#createbtn").removeClass("loading");
+                            window.location.reload();
+                            
+                        }
+                    });
+
+                });
+            }
+        </script>
+    </body>
+</html>
